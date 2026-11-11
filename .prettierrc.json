@@ -1,0 +1,11 @@
+{
+    "arrowParens": "always",
+    "htmlWhitespaceSensitivity": "css",
+    "insertPragma": false,
+    "bracketSameLine": false,
+    "printWidth": 80,
+    "proseWrap": "always",
+    "requirePragma": false,
+    "tabWidth": 4,
+    "useTabs": false
+}

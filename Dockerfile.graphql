@@ -1,0 +1,103 @@
+FROM python:3.12-slim-bookworm AS openapi-gen
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100 \
+    POETRY_VERSION=1.8.3 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_CACHE_DIR='/var/cache/poetry' \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1
+
+ENV PATH="$PATH:$POETRY_HOME/bin"
+
+RUN --mount=type=cache,target="$POETRY_CACHE_DIR" \
+    apt-get update \
+    && apt-get install -y curl \
+    && curl -sSL 'https://install.python-poetry.org' | python - \
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY ./poetry.lock ./pyproject.toml ./
+RUN --mount=type=cache,target="$POETRY_CACHE_DIR" \
+    poetry install --only backend --no-root --no-interaction --no-ansi --sync
+
+COPY src/backend src/backend
+RUN poetry run python -m src.backend.cli gen-api-spec
+
+##########################################
+
+# Ensure this matches .nvmrc
+FROM node:22.16.0-slim AS base
+
+RUN apt-get clean && apt-get update && apt-get upgrade -y \
+  && apt-get install -y unzip jq \
+  # Cleaning cache:
+  && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+  && apt-get clean -y \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/pnpm:$PATH" \
+  GRAPHQL_PORT=4000
+
+RUN corepack enable
+WORKDIR /app
+
+##########################################
+
+FROM base AS dev-deps
+COPY package.json pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+  pnpm install
+
+##########################################
+
+FROM dev-deps AS graphql-build
+
+COPY tsconfig.json openapi-ts.config.ts ./
+COPY --from=openapi-gen /app/src/backend/__generated__/openapi.json src/backend/__generated__/openapi.json
+COPY src/graphql/codegen.yaml src/graphql/codegen.yaml
+COPY src/graphql/resources/schema.graphql src/graphql/resources/schema.graphql
+COPY src/ui/dashboard/src/graphql src/ui/dashboard/src/graphql
+RUN pnpm run graphql-generate-backend && pnpm run graphql-generate
+
+##########################################
+
+FROM base AS graphql-dev
+
+COPY tsconfig.json ./
+
+COPY package.json .
+COPY --from=dev-deps /app/node_modules node_modules
+
+ENTRYPOINT [ "pnpm", "start-graphql" ]
+EXPOSE 4000
+
+##########################################
+
+FROM base AS prod-deps
+
+COPY package.json pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+  pnpm install --prod --frozen-lockfile --ignore-scripts # ~1GB of node_modules
+
+##########################################
+
+FROM base AS graphql-prod
+
+COPY tsconfig.json ./
+
+COPY package.json .
+COPY --from=prod-deps /app/node_modules node_modules
+
+COPY src/common src/common
+COPY src/graphql src/graphql
+COPY --from=graphql-build /app/src/graphql/__generated__ src/graphql/__generated__
+
+# Run tsx directly so the container needs no package manager at runtime.
+ENTRYPOINT [ "node_modules/.bin/tsx", "src/graphql/src/app.ts" ]
+EXPOSE 4000

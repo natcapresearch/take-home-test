@@ -1,0 +1,57 @@
+img {
+    max-width: 100%;
+}
+
+/* Fix so map layer does not show on top of popup */
+.leaflet-popup {
+    z-index: 1000;
+}
+
+.leaflet-popup-tip {
+    display: none;
+}
+
+/* Transition for map layers */
+.leaflet-image-layer {
+    transition: opacity 100ms ease-in-out;
+}
+
+.leaflet-container {
+    border-radius: 4px;
+    z-index: 0;
+}
+
+/* Style leaflet buttons to look like paste */
+.leaflet-control-layers.leaflet-control,
+.leaflet-control-zoom.leaflet-bar.leaflet-control {
+    border: none !important;
+    box-shadow: #c6c6bb 0px 0px 0px 1px !important;
+}
+
+.leaflet-touch .leaflet-control-layers-toggle,
+.leaflet-control-zoom-out,
+.leaflet-control-zoom-in {
+    height: 36px !important;
+    width: 36px !important;
+}
+
+.leaflet-control-zoom-out {
+    border-bottom-left-radius: 4px !important;
+    border-bottom-right-radius: 4px !important;
+    &:hover {
+        box-shadow: #1a8289 0px 0px 0px 1px !important;
+    }
+}
+
+.leaflet-control-zoom-in {
+    border-top-left-radius: 4px !important;
+    border-top-right-radius: 4px !important;
+    &:hover {
+        box-shadow: #1a8289 0px 0px 0px 1px !important;
+        border: none !important;
+    }
+}
+
+body {
+    background-color: #f6f8f5 !important;
+}

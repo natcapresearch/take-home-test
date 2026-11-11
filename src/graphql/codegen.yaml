@@ -1,0 +1,21 @@
+# This configuration file tells GraphQL Code Generator how
+# to generate types based on our schema.
+documents:
+    - src/ui/dashboard/src/graphql/**/*.graphql
+schema: "src/graphql/resources/schema.graphql"
+generates:
+    ./src/graphql/__generated__/resolvers-types.ts:
+        plugins:
+            - "typescript"
+            - "typescript-resolvers"
+        config:
+            useIndexSignature: true
+            contextType: "../src/app#Context"
+    ./src/ui/common/__generated__/client-types.ts:
+        plugins:
+            - typescript
+            - typescript-operations
+            - typed-document-node
+        config:
+            indentifierName: AllOperations
+            preResolveTypes: false

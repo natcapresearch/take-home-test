@@ -1,0 +1,412 @@
+###
+# GraphQL Schema
+#
+# When specifying mutations or naming fields, we use "[verb][noun]" naming conventions:
+# - "createUser" mutation
+# - "updateUserForm" field
+#
+###
+
+scalar DateTime
+scalar JSON
+
+"""
+A Node is an object with a globally unique identifier.
+This pattern follows the Relay specification for GraphQL.
+https://relay.dev/docs/guides/graphql-server-specification/#object-identification
+"""
+interface Node {
+    id: ID!
+}
+
+###
+# ERRORS
+###
+
+interface Error {
+    message: String!
+}
+
+# If you're adding a new error code, please also add it to `ERROR_STATUS_TO_CODE`
+# in `src/graphql/src/service.ts`.
+enum ErrorCode {
+    # 4xx-style Client Errors
+    BAD_REQUEST
+    UNAUTHORISED
+    FORBIDDEN
+    NOT_FOUND
+    METHOD_NOT_ALLOWED
+    NOT_ACCEPTABLE
+    CONFLICT
+    UNPROCESSABLE_ENTITY
+    TOO_MANY_REQUESTS
+
+    # 5xx-style Server Errors
+    INTERNAL_SERVER_ERROR
+    NOT_IMPLEMENTED
+    BAD_GATEWAY
+    SERVICE_UNAVAILABLE
+    GATEWAY_TIMEOUT
+
+    # Other Errors
+    UNKNOWN
+}
+
+type ResultError implements Error {
+    message: String!
+    code: ErrorCode
+    detail: JSON
+}
+
+###
+# PAGINATION & SORTING
+###
+
+type PageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+    totalCount: Int
+}
+
+enum SortOrder {
+    ASC
+    DESC
+}
+
+"""
+Which entities a changeset-aware listing returns.
+
+ALIVE (the default) returns only those alive in the requested changeset.
+ALL returns every entity in the organisation, each carrying
+`aliveInChangeSet`, so a caller can show the rest as not in this version
+rather than omitting them. Only meaningful alongside `changeSetUid`.
+"""
+enum EntityScope {
+    ALIVE
+    ALL
+}
+
+###
+# USERS & PERMISSIONS
+###
+
+type User implements Node {
+    id: ID!
+    email: String!
+    nickname: String
+}
+
+type PermissionSet {
+    "The object that the permissions apply to for the given subject"
+    object: String # e.g. root, organisation:<id>
+    "List of roles the user has for the object, or has inherited"
+    roles: [String] # e.g. organisation:admin
+    "List of specific abilities the user has for the object"
+    scopes: [String] # e.g. update:change_set:publish
+}
+
+union PermissionSetResult = PermissionSet | ResultError
+
+###
+# CONFIG
+###
+
+type ApplicationConfig {
+    """
+    The organisation the dashboard opens when no organisation is named in
+    the URL. Sourced from the `DEFAULT_ORG_UID` environment variable.
+    """
+    defaultOrgUid: String
+}
+
+union ApplicationConfigResult = ApplicationConfig | ResultError
+
+###
+# ORGANISATIONS
+###
+
+"""
+Feature flags for an Organisation.
+Note: Make new fields nullable. DO NOT add new non-nullable fields.
+"""
+type OrganisationConfig implements Node {
+    id: ID!
+    "Whether commodity impacts pages should be shown"
+    hasCommodityImpacts: Boolean
+    "Whether commodity dependencies pages should be shown"
+    hasCommodityDependencies: Boolean
+    "Whether commodity risks pages should be shown"
+    hasCommodityRisks: Boolean
+}
+
+"""
+An Organisation which can have users and associated data.
+"""
+type Organisation implements Node {
+    id: ID!
+    "The unique identifier of this Organisation"
+    uuid: String
+    "The user-facing identifier for this Organisation"
+    name: String
+
+    config: OrganisationConfig
+    permissionSet: PermissionSetResult
+
+    "The change set (version) shown when the URL names none"
+    defaultChangeSetUid: String
+
+    changeSets(
+        first: Int
+        after: String
+        before: String
+        sortOrder: SortOrder
+        sortOn: String
+        state: ChangeSetState
+    ): ChangeSetsConnectionResult
+    changeSetByUid(uid: String): ChangeSetResult
+
+    "A grouped summary of changes for a given change set in this organisation"
+    changeSetSummary(changeSetUid: String!): ChangeSetSummaryResult
+
+    commoditySources(
+        first: Int
+        after: String
+        before: String
+        sortOrder: SortOrder
+        sortOn: String
+        filter: CommoditySourceFilter
+        changeSetUid: String
+        scope: EntityScope
+    ): CommoditySourcesConnectionResult
+    commoditySourceSummary(
+        filter: CommoditySourceFilter
+        changeSetUid: String
+        scope: EntityScope
+    ): CommoditySourceSummaryResult
+    aggregatedCommoditySourceRegions(
+        commoditySubgroups: [String!]
+        includeGeometry: Boolean
+        groupByCountry: Boolean
+        changeSetUid: String
+    ): AggregatedCommoditySourceRegionsResult
+}
+
+###
+# CHANGE SETS (VERSIONS)
+###
+
+enum ChangeSetState {
+    DRAFT
+    PROCESSING
+    DONE
+    PUBLISHED
+}
+
+"""
+How many of a change set's entities have a value, such as commodity sources
+with spend: all, some or none.
+"""
+enum DataCoverage {
+    FULL
+    PARTIAL
+    NONE
+}
+
+"""
+Compact parent change set info embedded in a ChangeSet response.
+"""
+type ParentChangeSet {
+    uid: String!
+    name: String
+}
+
+type ChangeSet implements Node {
+    id: ID!
+    uid: String!
+    orgUid: String!
+    permissionSet: PermissionSetResult
+    state: ChangeSetState!
+    name: String!
+    description: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    processedAt: DateTime
+    publishedAt: DateTime
+    unpublishedAt: DateTime
+    parentUid: String
+    parentChangeSet: ParentChangeSet
+    "Whether this is the organisation's most recent change set."
+    isLatest: Boolean!
+    """
+    Whether all, some or none of the change set's commodity sources have
+    spend. Null when the change set has no stored datashape.
+    """
+    commoditySpendCoverage: DataCoverage
+}
+
+type ChangeSetEdge {
+    cursor: String!
+    node: ChangeSet!
+}
+
+type ChangeSetsConnection {
+    edges: [ChangeSetEdge]
+    pageInfo: PageInfo!
+}
+
+union ChangeSetResult = ChangeSet | ResultError
+union ChangeSetsConnectionResult = ChangeSetsConnection | ResultError
+
+type UnitOfAnalysisChangeSummary {
+    value: Float!
+    text: String!
+}
+
+type UnitOfAnalysisChangeSummaryBreakdown {
+    regions: [UnitOfAnalysisChangeSummary!]!
+    commodities: [UnitOfAnalysisChangeSummary!]!
+    suppliers: [UnitOfAnalysisChangeSummary!]!
+    products: [UnitOfAnalysisChangeSummary!]!
+}
+
+type ChangeSetSummary {
+    orgUid: String!
+    changeSetUid: String!
+    state: String!
+    name: String
+    description: String
+    commoditySourceUnitOfAnalysisSummaries: UnitOfAnalysisChangeSummaryBreakdown!
+}
+
+union ChangeSetSummaryResult = ChangeSetSummary | ResultError
+
+###
+# COMMODITY SOURCES
+###
+
+input CommoditySourceFilter {
+    commoditySubgroup: String
+    commoditySubgroups: [String!]
+    countries: [String!]
+    sourcingAdministrativeLevel1Names: [String!]
+    suppliers: [String!]
+    productNames: [String!]
+    yearsPurchased: [Int!]
+}
+
+type CommoditySource implements Node {
+    id: ID!
+    uid: String!
+    identifier: String!
+    commodityType: String!
+    commoditySubgroup: String!
+    commodityCode: String!
+    yearPurchased: Int!
+    sourcingCountry: String!
+    sourcingRegion: String
+    quantityKilograms: Float
+    spend: Float
+    supplier: String
+    product: String
+
+    """
+    False when this entity is not alive in the requested changeset. Only
+    ever false for a `scope: ALL` listing, which returns entities outside
+    the changeset so a caller can show them greyed rather than omitting them.
+    """
+    aliveInChangeSet: Boolean
+}
+
+type CommoditySourceEdge {
+    cursor: String!
+    node: CommoditySource
+}
+
+type CommoditySourcesConnection {
+    edges: [CommoditySourceEdge]
+    pageInfo: PageInfo!
+}
+
+union CommoditySourcesConnectionResult =
+      CommoditySourcesConnection
+    | ResultError
+
+type CommoditySourceSummary {
+    totalCommodities: Float
+    commodityTypes: [String!]
+    commoditySubgroups: [String!]
+    sourcingCountries: [String!]
+    sourcingRegions: [String!]
+    supplierNames: [String!]
+    productNames: [String!]
+    totalSuppliers: Float
+    totalLocations: Float
+    totalSpend: Float
+    totalQuantity: Float
+    allCommoditiesHaveQuantity: Boolean
+    allCommoditiesHaveSpend: Boolean
+    missingQuantityCount: Int
+    missingSpendCount: Int
+    totalCommoditySources: Int
+}
+
+union CommoditySourceSummaryResult = CommoditySourceSummary | ResultError
+
+type Geometry {
+    type: String
+    coordinates: JSON
+}
+
+type CommodityBreakdownEntry {
+    commoditySubgroup: String!
+    totalSpend: Float
+    totalQuantity: Float
+}
+
+type AggregatedCommoditySourceRegion {
+    countryName: String!
+    sourcingAdministrativeLevel1Name: String
+    totalSpend: Float
+    totalQuantity: Float
+    geometry: Geometry
+    commodityBreakdown: [CommodityBreakdownEntry!]!
+}
+
+type AggregatedCommoditySourceRegionsList {
+    regions: [AggregatedCommoditySourceRegion!]!
+}
+
+union AggregatedCommoditySourceRegionsResult =
+      AggregatedCommoditySourceRegionsList
+    | ResultError
+
+###
+# ROOT TYPES
+###
+
+type Query {
+    "The user making the request"
+    viewer: User
+
+    # Application Configuration
+    config: ApplicationConfigResult
+
+    # Permissions
+    permissionSet: PermissionSetResult
+
+    # Organisations
+    organisationByUuid(uuid: String!): Organisation
+}
+
+type Mutation {
+    # Change sets
+    updateChangeSet(
+        orgUid: String!
+        changeSetUid: String!
+        state: ChangeSetState
+        name: String
+        description: String
+    ): ChangeSetResult
+}

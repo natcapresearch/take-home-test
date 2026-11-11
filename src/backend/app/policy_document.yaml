@@ -1,0 +1,34 @@
+policies:
+    # Any user can see models marked with the "common" resource type.
+    - resource-type: common
+      roles:
+          - admin
+          - viewer
+      actions:
+          - read:common:basic
+      condition: unconditional
+
+    - resource-type: org
+      roles:
+          - admin
+          - viewer
+      actions:
+          - read:org:basic
+      condition: unconditional
+
+    - resource-type: change_set
+      roles:
+          - admin
+      actions:
+          - read:change_set:basic
+          - read:change_set:all
+          - update:change_set:basic
+          - update:change_set:publish
+      condition: unconditional
+
+    - resource-type: change_set
+      roles:
+          - viewer
+      actions:
+          - read:change_set:basic
+      condition: unconditional

@@ -1,0 +1,136 @@
+FROM python:3.12-slim-bookworm AS openapi-gen
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100 \
+    POETRY_VERSION=1.8.3 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_CACHE_DIR='/var/cache/poetry' \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1
+
+ENV PATH="$PATH:$POETRY_HOME/bin"
+
+RUN --mount=type=cache,target="$POETRY_CACHE_DIR" \
+    apt-get update \
+    && apt-get install -y curl \
+    && curl -sSL 'https://install.python-poetry.org' | python - \
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY ./poetry.lock ./pyproject.toml ./
+RUN --mount=type=cache,target="$POETRY_CACHE_DIR" \
+    poetry install --only backend --no-root --no-interaction --no-ansi --sync
+
+COPY src/backend src/backend
+RUN poetry run python -m src.backend.cli gen-api-spec
+
+##########################################
+
+FROM --platform=$BUILDPLATFORM node:22.16.0-slim AS frontend-build-base
+
+ARG PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN corepack enable
+
+WORKDIR /app
+
+# Copy config files into root
+COPY .parcelrc .proxyrc.ts .terserrc tsconfig.json ./
+
+# Install dependencies
+COPY package.json pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install
+
+##########################################
+
+FROM --platform=$BUILDPLATFORM frontend-build-base AS frontend-dev-server
+
+ENTRYPOINT [ "pnpm", "start-dashboard" ]
+
+##########################################
+
+FROM --platform=$BUILDPLATFORM frontend-build-base AS frontend-build-prod
+
+# Copy source files into application directory
+COPY src/common src/common
+COPY src/ui/common src/ui/common
+COPY src/ui/dashboard src/ui/dashboard
+
+# Generate TypeScript types from OpenAPI spec and GraphQL schema
+COPY --from=openapi-gen /app/src/backend/__generated__/openapi.json src/backend/__generated__/openapi.json
+COPY openapi-ts.config.ts ./
+COPY src/graphql/codegen.yaml src/graphql/codegen.yaml
+COPY src/graphql/resources/schema.graphql src/graphql/resources/schema.graphql
+RUN pnpm run graphql-generate-backend && pnpm run graphql-generate
+
+RUN --mount=type=cache,target=/app/.parcel-cache \
+    NODE_ENV=production pnpm build
+
+##########################################
+
+FROM python:3.12-slim-bookworm AS python-base
+
+ENV PYTHONUNBUFFERED=1 \
+    # prevents python creating .pyc files
+    PYTHONDONTWRITEBYTECODE=1 \
+    \
+    # pip
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100 \
+    \
+    # poetry
+    # https://python-poetry.org/docs/configuration/#using-environment-variables
+    POETRY_VERSION=1.8.3 \
+    # make poetry install to this location
+    POETRY_HOME="/opt/poetry" \
+    POETRY_CACHE_DIR='/var/cache/poetry' \
+    # don't create virtual environment
+    POETRY_VIRTUALENVS_CREATE=false \
+    # do not ask any interactive question
+    POETRY_NO_INTERACTION=1
+
+ENV PATH="$PATH:$POETRY_HOME/bin"
+
+RUN --mount=type=cache,target="$POETRY_CACHE_DIR" \
+    apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y curl \
+    && curl -sSL 'https://install.python-poetry.org' | python - \
+    # Cleaning cache:
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY ./poetry.lock ./pyproject.toml ./
+
+# The --mount will mount the buildx cache directory to where
+# Poetry and Pip store their cache so that they can re-use it
+RUN --mount=type=cache,target="$POETRY_CACHE_DIR" \
+    poetry --version && poetry run pip --version \
+    && poetry install --only dashboard  --no-root \
+    --no-interaction --no-ansi --sync
+
+##########################################
+
+FROM python-base AS dashboard-dev
+# No extra steps needed
+
+##########################################
+
+FROM python-base AS dashboard-prod
+COPY --from=python-base $POETRY_HOME $POETRY_HOME
+
+COPY src/ui/dashboard/error.html ./src/ui/dashboard/error.html
+COPY src/ui/dashboard/public ./src/ui/dashboard/public
+COPY src/ui/dashboard/main.py ./src/ui/dashboard/main.py
+
+COPY --from=frontend-build-prod /app/dist ./dist

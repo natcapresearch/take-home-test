@@ -1,0 +1,71 @@
+FROM python:3.12-slim-bookworm AS python-base
+
+ENV PYTHONUNBUFFERED=1 \
+    # prevents python creating .pyc files
+    PYTHONDONTWRITEBYTECODE=1 \
+    \
+    # pip
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100 \
+    \
+    # poetry
+    # https://python-poetry.org/docs/configuration/#using-environment-variables
+    POETRY_VERSION=1.8.3 \
+    # make poetry install to this location
+    POETRY_HOME="/opt/poetry" \
+    POETRY_CACHE_DIR='/var/cache/poetry' \
+    # don't create virtual environment
+    POETRY_VIRTUALENVS_CREATE=false \
+    # do not ask any interactive question
+    POETRY_NO_INTERACTION=1
+
+ENV PATH="$PATH:$POETRY_HOME/bin"
+
+RUN --mount=type=cache,target="$POETRY_CACHE_DIR" \
+    apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y curl \
+    && curl -sSL 'https://install.python-poetry.org' | python - \
+    # Cleaning cache:
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY ./poetry.lock ./pyproject.toml ./
+
+# The --mount will mount the buildx cache directory to where
+# Poetry and Pip store their cache so that they can re-use it
+RUN --mount=type=cache,target="$POETRY_CACHE_DIR" \
+    poetry --version && poetry run pip --version \
+    && poetry install --only backend \
+    --no-interaction --no-ansi --sync
+
+COPY alembic.ini ./alembic.ini
+
+##########################################
+
+FROM python-base AS backend-dev
+
+EXPOSE 8000
+ENTRYPOINT [ \
+    "uvicorn", \
+    "src.backend.app.main:app", \
+    "--host", "0.0.0.0", \
+    "--port", "8000", \
+    "--no-access-log", \
+    "--reload", \
+    "--reload-dir=./src/backend/", \
+    "--reload-include=*.py", \
+    "--timeout-graceful-shutdown=5" \
+    ]
+
+##########################################
+
+FROM python-base AS backend-prod
+
+COPY src/backend ./src/backend
+
+EXPOSE 8000
+ENTRYPOINT ["/bin/sh", "-c", "exec gunicorn src.backend.app.main:app -k uvicorn.workers.UvicornWorker --workers ${UVICORN_WORKERS:-1} --preload --bind 0.0.0.0:8000 --log-level warning --timeout 300"]

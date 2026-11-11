@@ -1,0 +1,16 @@
+query orgPermission($orgUid: String!) {
+    organisationByUuid(uuid: $orgUid) {
+        id
+
+        permissionSet {
+            __typename
+            ... on PermissionSet {
+                scopes
+            }
+            ... on ResultError {
+                message
+                code
+            }
+        }
+    }
+}

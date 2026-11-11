@@ -1,0 +1,18 @@
+query changeSetByUid($orgUid: String!, $changeSetUid: String!) {
+    organisationByUuid(uuid: $orgUid) {
+        id
+        changeSetByUid(uid: $changeSetUid) {
+            ... on ChangeSet {
+                id
+                uid
+                state
+                name
+                commoditySpendCoverage
+            }
+            ... on ResultError {
+                message
+                code
+            }
+        }
+    }
+}

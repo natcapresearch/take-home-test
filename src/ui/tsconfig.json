@@ -1,0 +1,22 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        // Emit .jsx files with the JSX unchanged. This allows
+        // other transpilation steps to handle JSX as needed.
+        // Specifically in this repo, that's parcel/babel.
+        "jsx": "react-jsx",
+        // We're in the browser!
+        "lib": ["dom", "dom.iterable"],
+        // Very important for debugging. This will generate source maps
+        // that will allow you to see the original TypeScript code in
+        // the browser's dev tools.
+        "sourceMap": true
+    },
+    "include": [
+        "assets.d.ts",
+        "../common/**/*.ts",
+        "../common/**/*.tsx",
+        "./**/*.ts",
+        "./**/*.tsx"
+    ]
+}

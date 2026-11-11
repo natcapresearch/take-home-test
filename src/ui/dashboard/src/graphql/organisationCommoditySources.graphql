@@ -1,0 +1,78 @@
+query OrganisationCommoditySources(
+    $orgUuid: String!
+    $first: Int
+    $after: String
+    $before: String
+    $sortOrder: SortOrder
+    $sortOn: String
+    $filter: CommoditySourceFilter
+    $changeSetUid: String
+    $scope: EntityScope
+) {
+    organisationByUuid(uuid: $orgUuid) {
+        id
+        commoditySourceSummary(
+            filter: $filter
+            changeSetUid: $changeSetUid
+            scope: $scope
+        ) {
+            ... on CommoditySourceSummary {
+                totalCommodities
+                totalSuppliers
+                totalLocations
+                totalSpend
+                totalQuantity
+                commoditySubgroups
+                allCommoditiesHaveQuantity
+                allCommoditiesHaveSpend
+            }
+            ... on ResultError {
+                message
+                code
+            }
+        }
+        commoditySources(
+            first: $first
+            after: $after
+            before: $before
+            sortOrder: $sortOrder
+            sortOn: $sortOn
+            filter: $filter
+            changeSetUid: $changeSetUid
+            scope: $scope
+        ) {
+            ... on CommoditySourcesConnection {
+                edges {
+                    cursor
+                    node {
+                        id
+                        uid
+                        identifier
+                        commodityCode
+                        commodityType
+                        commoditySubgroup
+                        yearPurchased
+                        sourcingCountry
+                        sourcingRegion
+                        quantityKilograms
+                        spend
+                        supplier
+                        product
+                        aliveInChangeSet
+                    }
+                }
+                pageInfo {
+                    endCursor
+                    hasNextPage
+                    hasPreviousPage
+                    startCursor
+                    totalCount
+                }
+            }
+            ... on ResultError {
+                message
+                code
+            }
+        }
+    }
+}

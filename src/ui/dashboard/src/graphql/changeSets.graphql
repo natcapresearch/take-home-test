@@ -1,0 +1,54 @@
+query adminPanelChangeSets($orgUid: String!) {
+    organisationByUuid(uuid: $orgUid) {
+        id
+        changeSets(sortOrder: DESC, sortOn: "created_at", first: 50) {
+            ... on ChangeSetsConnection {
+                edges {
+                    cursor
+                    node {
+                        ... on ChangeSet {
+                            id
+                            uid
+                            orgUid
+                            permissionSet {
+                                __typename
+                                ... on PermissionSet {
+                                    scopes
+                                }
+                                ... on ResultError {
+                                    message
+                                    code
+                                }
+                            }
+                            name
+                            description
+                            parentUid
+                            isLatest
+                            parentChangeSet {
+                                uid
+                                name
+                            }
+                            createdAt
+                            updatedAt
+                            publishedAt
+                            unpublishedAt
+                            processedAt
+                            state
+                        }
+                    }
+                }
+                pageInfo {
+                    hasNextPage
+                    hasPreviousPage
+                    startCursor
+                    endCursor
+                    totalCount
+                }
+            }
+            ... on ResultError {
+                message
+                code
+            }
+        }
+    }
+}

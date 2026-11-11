@@ -1,0 +1,37 @@
+.DS_Store
+
+# Env files (copy example.env.development to .env.development)
+.env
+.env.*
+
+# Local Postgres data when running outside Compose
+postgres-data/
+
+# Node
+node_modules/
+.parcel-cache/
+dist/
+*.log
+*.tsbuildinfo
+.eslintcache
+coverage/
+coverage-ts/
+coverage.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+pyrightconfig.json
+
+# Generated code (see `pnpm run gen`)
+src/backend/__generated__/
+src/graphql/__generated__/
+src/ui/common/__generated__/
+src/common/__generated__/

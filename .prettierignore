@@ -1,0 +1,10 @@
+.dockerignore
+poetry.lock
+pnpm-lock.yaml
+*.geojson
+docker/pg-autoload/
+scripts/data/
+src/graphql/__generated__/
+src/ui/common/__generated__/
+src/backend/__generated__/
+Dockerfile.*

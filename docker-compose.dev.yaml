@@ -1,0 +1,42 @@
+# Development override: hot reload for all three services.
+#
+#   pnpm install && poetry install && pnpm run gen     # once, on the host
+#   docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up --build
+#   open http://localhost:1234
+#
+# Source directories are bind-mounted, so edits under src/ reload in place.
+# After changing a backend schema, the GraphQL schema or a .graphql document,
+# run `pnpm run gen` on the host again (the generated files are mounted too).
+
+services:
+    backend:
+        build:
+            target: backend-dev
+        volumes:
+            - ./src/backend:/app/src/backend
+
+    graphql:
+        build:
+            target: graphql-dev
+        volumes:
+            - ./src/common:/app/src/common
+            - ./src/graphql:/app/src/graphql
+            - ./src/ui/common/__generated__:/app/src/ui/common/__generated__
+
+    # In development the Parcel dev server replaces the static dashboard
+    # server: it serves the SPA with hot module reload on :1234 and proxies
+    # /api to the graphql service (see .proxyrc.ts).
+    dashboard:
+        build:
+            target: frontend-dev-server
+        entrypoint: ["pnpm", "start-dashboard"]
+        environment:
+            IN_DOCKER: "true"
+            NODE_OPTIONS: "--max_old_space_size=3072"
+        ports:
+            - "1234:1234"
+        volumes:
+            - ./.parcel-cache:/app/.parcel-cache
+            - ./dist:/app/dist
+            - ./src/common:/app/src/common
+            - ./src/ui:/app/src/ui

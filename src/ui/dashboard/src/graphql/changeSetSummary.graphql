@@ -1,0 +1,48 @@
+query changeSetSummary($orgUid: String!, $changeSetUid: String!) {
+    organisationByUuid(uuid: $orgUid) {
+        id
+        commoditySourceSummary(changeSetUid: $changeSetUid) {
+            ... on CommoditySourceSummary {
+                totalCommodities
+                missingQuantityCount
+                missingSpendCount
+                totalCommoditySources
+            }
+            ... on ResultError {
+                message
+                code
+            }
+        }
+        changeSetSummary(changeSetUid: $changeSetUid) {
+            ... on ChangeSetSummary {
+                orgUid
+                changeSetUid
+                state
+                name
+                description
+                commoditySourceUnitOfAnalysisSummaries {
+                    regions {
+                        value
+                        text
+                    }
+                    commodities {
+                        value
+                        text
+                    }
+                    suppliers {
+                        value
+                        text
+                    }
+                    products {
+                        value
+                        text
+                    }
+                }
+            }
+            ... on ResultError {
+                message
+                code
+            }
+        }
+    }
+}

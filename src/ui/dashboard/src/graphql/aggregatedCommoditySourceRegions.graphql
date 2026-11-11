@@ -1,0 +1,39 @@
+query AggregatedCommoditySourceRegions(
+    $orgUuid: String!
+    $commoditySubgroups: [String!]
+    $includeGeometry: Boolean
+    $groupByCountry: Boolean
+    $changeSetUid: String
+) {
+    organisationByUuid(uuid: $orgUuid) {
+        id
+        aggregatedCommoditySourceRegions(
+            commoditySubgroups: $commoditySubgroups
+            includeGeometry: $includeGeometry
+            groupByCountry: $groupByCountry
+            changeSetUid: $changeSetUid
+        ) {
+            ... on AggregatedCommoditySourceRegionsList {
+                regions {
+                    countryName
+                    sourcingAdministrativeLevel1Name
+                    totalQuantity
+                    totalSpend
+                    geometry {
+                        type
+                        coordinates
+                    }
+                    commodityBreakdown {
+                        commoditySubgroup
+                        totalQuantity
+                        totalSpend
+                    }
+                }
+            }
+            ... on ResultError {
+                message
+                code
+            }
+        }
+    }
+}

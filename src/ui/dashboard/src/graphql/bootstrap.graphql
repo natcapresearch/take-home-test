@@ -1,0 +1,27 @@
+query bootstrap {
+    config {
+        __typename
+        ... on ApplicationConfig {
+            defaultOrgUid
+        }
+        ... on ResultError {
+            message
+            code
+        }
+    }
+    viewer {
+        email
+        id
+        nickname
+    }
+    permissionSet {
+        __typename
+        ... on PermissionSet {
+            scopes
+        }
+        ... on ResultError {
+            message
+            code
+        }
+    }
+}

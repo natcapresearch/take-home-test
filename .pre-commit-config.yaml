@@ -1,0 +1,38 @@
+# See https://pre-commit.com for more information
+repos:
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: v0.6.9
+      hooks:
+          - id: ruff
+            types_or: [python, pyi]
+            args: [--fix]
+          - id: ruff-format
+            types_or: [python, pyi]
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v5.0.0
+      hooks:
+          - id: check-added-large-files
+            args: [--maxkb=5120]
+          - id: check-case-conflict
+          - id: check-merge-conflict
+          - id: forbid-new-submodules
+    - repo: local
+      hooks:
+          - id: pnpm-check
+            name: pnpm check
+            entry: pnpm check
+            language: system
+            types_or: [javascript, jsx, ts, tsx]
+            pass_filenames: false
+          - id: ci-check
+            name: poetry ci check
+            entry: poetry run python -m src.backend.cli ci check
+            language: system
+            pass_filenames: false
+            always_run: true
+          - id: migration-check
+            name: alembic migration check
+            entry: poetry run alembic -n backend check
+            language: system
+            pass_filenames: false
+            always_run: true

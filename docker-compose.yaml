@@ -1,0 +1,103 @@
+# Self-contained stack: Postgres (pre-seeded) + backend + GraphQL + dashboard.
+#
+#   docker compose up --build
+#   open http://localhost:5678
+#
+# Development loop with hot reload: see docker-compose.dev.yaml.
+#
+# Environment defaults live in example.env.development; nothing here needs
+# credentials or network access beyond pulling base images and map tiles.
+
+x-backend-env: &backend-env
+    DB_HOST: postgres
+    DB_USERNAME: postgres
+    DB_PASSWORD: postgres
+    DEMO_USER_EMAIL: ${DEMO_USER_EMAIL:-demo@example.com}
+    DEMO_USER_NICKNAME: ${DEMO_USER_NICKNAME:-Demo User}
+    DEMO_USER_ROLES: ${DEMO_USER_ROLES:-admin}
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+services:
+    postgres:
+        image: postgres:16.3
+        command: -c 'fsync=off'
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_DB: postgres
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+            # Schema + seed data, applied once when the volume is first created.
+            - ./docker/pg-autoload:/docker-entrypoint-initdb.d:ro
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    migrate:
+        build:
+            context: .
+            dockerfile: Dockerfile.backend
+            target: backend-prod
+        environment: *backend-env
+        entrypoint: ["python", "-m", "src.backend.cli", "db", "upgrade"]
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    backend:
+        build:
+            context: .
+            dockerfile: Dockerfile.backend
+            target: backend-prod
+        environment: *backend-env
+        ports:
+            - "8000:8000"
+        depends_on:
+            migrate:
+                condition: service_completed_successfully
+        healthcheck:
+            test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    graphql:
+        build:
+            context: .
+            dockerfile: Dockerfile.graphql
+            target: graphql-prod
+        environment:
+            GRAPHQL_PORT: 4000
+            BACKEND_API_URL: http://backend:8000
+            # The organisation created by scripts/seed.py (stable uid)
+            DEFAULT_ORG_UID: ${DEFAULT_ORG_UID:-a4e22a6a-a062-4436-90c6-c51635c03fa7}
+        ports:
+            - "4000:4000"
+        depends_on:
+            backend:
+                condition: service_healthy
+
+    dashboard:
+        build:
+            context: .
+            dockerfile: Dockerfile.dashboard
+            target: dashboard-prod
+        environment:
+            GRAPHQL_PROXY_URL: http://graphql:4000
+            GRAPHQL_PROXY_TIMEOUT: 17
+        ports:
+            - "5678:5678"
+        depends_on:
+            - graphql
+        entrypoint:
+            - uvicorn
+            - src.ui.dashboard.main:app
+            - --host=0.0.0.0
+            - --port=5678
+
+volumes:
+    postgres-data:

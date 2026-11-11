@@ -1,0 +1,28 @@
+mutation UpdateChangeSet(
+    $orgUid: String!
+    $changeSetUid: String!
+    $state: ChangeSetState
+    $name: String
+    $description: String
+) {
+    updateChangeSet(
+        orgUid: $orgUid
+        changeSetUid: $changeSetUid
+        state: $state
+        name: $name
+        description: $description
+    ) {
+        ... on ChangeSet {
+            id
+            uid
+            name
+            description
+            state
+            updatedAt
+        }
+        ... on ResultError {
+            code
+            message
+        }
+    }
+}

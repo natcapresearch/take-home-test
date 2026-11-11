@@ -1,0 +1,24 @@
+query organisation($orgUuid: String!, $changeSetUid: String) {
+    organisationByUuid(uuid: $orgUuid) {
+        id
+        name
+        uuid
+        defaultChangeSetUid
+        config {
+            id
+            hasCommodityImpacts
+            hasCommodityDependencies
+            hasCommodityRisks
+        }
+        permissionSet {
+            ... on PermissionSet {
+                scopes
+            }
+        }
+        commoditySourceSummary(changeSetUid: $changeSetUid) {
+            ... on CommoditySourceSummary {
+                totalCommodities
+            }
+        }
+    }
+}

@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&display=swap"
+            rel="stylesheet"
+        />
+        <meta charset="utf-8" />
+        <style>
+            body {
+                font-family: "Hanken Grotesk", sans-serif;
+                background-color: #00412b;
+                display: flex;
+                flex-flow: row nowrap;
+                height: 100vh;
+                align-items: center;
+                justify-content: center;
+                color: #121c2d;
+                font-size: 14px;
+                font-weight: 400;
+                line-height: 175%;
+                margin: 0;
+            }
+
+            article {
+                margin: 16px;
+                padding: 48px;
+                background-color: #fbfaf8;
+                max-width: 400px;
+                border-radius: 8px;
+            }
+
+            header {
+                text-align: center;
+                margin-bottom: 24px;
+                border-bottom: 1px solid #e1e3ea;
+            }
+
+            h1 {
+                font-size: 24px;
+                font-weight: 500;
+                margin: 0 0 32px;
+                line-height: 100%;
+                text-align: center;
+            }
+
+            .subheading {
+                margin-bottom: 32px;
+                font-size: 16px;
+                font-weight: 500;
+            }
+
+            a,
+            a:visited {
+                color: #1a8289;
+                text-decoration: none;
+            }
+            a:hover,
+            a:active {
+                color: #185157;
+            }
+
+            #error-details p {
+                color: #4b5671;
+                margin: 8px 0;
+            }
+
+            #error-details strong {
+                font-weight: 500;
+            }
+        </style>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Something went wrong</title>
+    </head>
+    <body>
+        <article>
+            <header class="error">
+                <h1>Something went wrong</h1>
+
+                <p class="subheading">
+                    Please try refreshing the page or navigating to
+                    <a href="/">the home page</a>.
+                </p>
+            </header>
+
+            <div id="error-details">
+                <p><strong>{{error}}</strong>: {{error_description}}</p>
+            </div>
+        </article>
+    </body>
+</html>

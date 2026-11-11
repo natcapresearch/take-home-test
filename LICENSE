@@ -1,0 +1,21 @@
+Copyright (c) 2026 Natcap Research Ltd. All rights reserved.
+
+This repository contains proprietary software of Natcap Research Ltd
+("Natcap") made available solely for the purpose of a recruitment
+assessment.
+
+Permission is granted to a candidate who has been invited by Natcap to
+complete the assessment to view, copy, run, and modify this software, on
+their own equipment, solely to complete that assessment and to submit the
+result to Natcap. This includes copying the repository, together with the
+candidate's changes, into a repository hosted on a public or private code
+hosting service (such as GitHub) for the purpose of submitting it to
+Natcap. No other right is granted. In particular, you may not otherwise
+publish, distribute, sublicense, or use this software or any part of it for
+any other purpose, including in any product, service, portfolio, or
+training material, without Natcap's prior written permission.
+
+This software is provided "as is", without warranty of any kind.
+
+Third-party components included via package managers remain subject to
+their own licences.
