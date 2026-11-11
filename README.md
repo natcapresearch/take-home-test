@@ -82,11 +82,16 @@ The first run takes a few minutes (image builds). When the log shows
 **<http://localhost:5678>**
 
 You land on the organisation **Example Foods Ltd** on the **Commodities
-Overview** page; the full URL is
+Overview** page, showing the latest version of its data. The URL names the
+version (change set) you are looking at; the published one is
 
 ```
 http://localhost:5678/o/a4e22a6a-a062-4436-90c6-c51635c03fa7/c/d4abecb4-1fc3-41a6-a45c-31028a7ffdd8/commodities-overview
 ```
+
+### What you should see in your browser
+
+![The Commodities Overview page: stat cards, the Map View tab with the global sourcing map, and the commodity charts](docs/app.png)
 
 The database is created and seeded automatically on the first start (from
 `docker/pg-autoload/seed.sql`). Useful commands:
